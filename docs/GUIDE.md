@@ -102,7 +102,7 @@ The file must be located at `.streamlit/secrets.toml`, alongside `app.py`.
 ### 2.3 Verification
 
 Restart the application (stop it with Ctrl+C, then run `streamlit run app.py` again). The sidebar status changes from "offline mode"
-to "Gemini". Questions in the Ask view now return generated answers with bracketed investigation identifiers. If an answer cites an
+to "Gemini (online)". Questions in the Ask view now return generated answers with bracketed investigation identifiers. If an answer cites an
 identifier that was not retrieved, a citation warning is shown beneath it.
 
 ### 2.4 Key location by environment

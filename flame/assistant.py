@@ -40,7 +40,7 @@ def offline_answer(question: str, hits: list[tuple[dict, float]], doc_hits: list
             f"Key finding: {finding}"
         )
     for d, sim in doc_hits:
-        lines.append(f"- 📄 **[{d['title']} p{d['part']}]** —{d['text'][:300]}…")
+        lines.append(f"- Document **[{d['title']} p{d['part']}]** —{d['text'][:300]}…")
     lines.append("\n_Offline mode: add a GEMINI_API_KEY for AI-written answers._")
     return "\n".join(lines)
 
@@ -84,7 +84,7 @@ def answer(question: str, hits: list[tuple[dict, float]], doc_hits: list[tuple[d
             return offline_answer(question, hits, doc_hits)
         unsupported = check_citations(text, hits, doc_hits)
         if unsupported:
-            text += f"\n\n⚠️ _Citation check: {', '.join(sorted(set(unsupported)))} not in retrieved sources - verify._"
+            text += f"\n\n_Citation check: {', '.join(sorted(set(unsupported)))} not in retrieved sources - verify._"
         return text
     except Exception as e:  # network, quota, bad key... keep the app usable
         return offline_answer(question, hits, doc_hits) + f"\n\n_AI call failed ({type(e).__name__}); showing offline answer._"

@@ -12,7 +12,7 @@ from flame.data import load_dataset, load_habitats, to_dataframe
 from flame.ranking import DEFAULT_WEIGHTS, coverage_gaps, rank
 from flame.search import SearchIndex
 
-st.set_page_config(page_title="Flame in Freefall", page_icon="🔥", layout="wide")
+st.set_page_config(page_title="Flame in Freefall", layout="wide")
 
 # Copy keys from .streamlit/secrets.toml (or Streamlit Cloud secrets) into the environment for the assistant.
 try:
@@ -47,16 +47,16 @@ with st.sidebar.expander("Ranking weights"):
     weights = {k: st.slider(k.capitalize(), 0.0, 1.0, v, 0.05) for k, v in DEFAULT_WEIGHTS.items()}
 
 st.sidebar.markdown("---")
-st.sidebar.caption(f"AI assistant: {'Gemini ✅' if assistant.ai_available() else 'offline mode'}")
+st.sidebar.caption(f"AI assistant: {'Gemini (online)' if assistant.ai_available() else 'offline mode'}")
 st.sidebar.caption(f"Resources: {len(resources['tests'])} test rows · {len(resources['documents'])} text passages "
                    f"· {len(resources['skipped'])} skipped")
-if st.sidebar.button("🔄 Reload data/resources"):
+if st.sidebar.button("Reload data/resources"):
     st.cache_resource.clear()
     st.rerun()
-st.sidebar.caption("⚠️ Seed dataset: condition values are approximate until replaced with NASA PSI data.")
+st.sidebar.caption("Note: seed dataset; condition values are approximate until replaced with NASA PSI data.")
 
 # ---------- Header ----------
-st.title("🔥 Flame in Freefall")
+st.title("Flame in Freefall")
 st.write("Rank, compare and interpret NASA microgravity combustion investigations for crew fire safety.")
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Investigations", len(records))
@@ -65,7 +65,7 @@ c3.metric("Max O2 tested", f"{df['o2_max'].max():g}%")
 c4.metric("Partial-g tests", 0, help="No partial-gravity data in PSI yet; ACME E-FIELD mimics buoyancy.")
 
 tab_rank, tab_map, tab_compare, tab_ask, tab_data = st.tabs(
-    ["🎯 Rank", "🗺️ Atmosphere gaps", "⚖️ Compare", "🤖 Ask", "📄 Data"])
+    ["Rank", "Atmosphere gaps", "Compare", "Ask", "Data"])
 
 # ---------- Rank ----------
 with tab_rank:
@@ -157,7 +157,7 @@ with tab_data:
     phases = st.multiselect("Fuel type", sorted(df.fuel_phase.unique()), default=sorted(df.fuel_phase.unique()))
     view = df[df.fuel_phase.isin(phases)]
     st.dataframe(view, hide_index=True, width="stretch")
-    st.download_button("⬇️ Download CSV (for modelling)", view.to_csv(index=False), "investigations.csv", "text/csv")
+    st.download_button("Download CSV", view.to_csv(index=False), "investigations.csv", "text/csv")
     with st.expander(f"Imported resources (data/resources/) — {len(resources['tests'])} test rows, "
                      f"{len({d['title'] for d in resources['documents']})} documents"):
         if not resources["tests"].empty:
