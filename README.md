@@ -19,8 +19,8 @@ shows **where the data runs out**.
 | 🤖 **Ask** | Plain-English questions answered by Gemini from retrieved NASA records, with citations checked by a guardrail. Works offline without a key. |
 | 📄 **Data** | Filterable table, CSV export for modelling, imported resource files, and full details per investigation. |
 
-**Key finding:** the planned Moon-base atmosphere (30% O₂, 10.2 psi) lies outside every solid-material microgravity test, even
-though fabrics and plastics are the main fire load in a cabin.
+**Key finding:** the planned Moon-base atmosphere (30% O₂, 10.2 psi) lies outside every solid-material test in this curated dataset (all at ≤21% O₂ and sea-level pressure), even though fabrics and
+plastics are the main fire load in a cabin. To be re-checked against NASA PSI as data is added.
 
 ## How it works
 
