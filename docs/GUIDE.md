@@ -1,18 +1,19 @@
-# Guide: run, test, add NASA data, deploy
+# User Guide
 
-- **Part A**: set up, use and test it **now** (no NASA files needed).
-- **Part B**: add the **official challenge resources** (any format).
-- **Part C**: publish (GitHub + free hosting).
-- **Part D**: troubleshooting.
+This guide covers installation, verification, adding NASA data, deployment and troubleshooting.
 
-Commands are for Windows. On macOS/Linux use `source .venv/bin/activate` instead of `.venv\Scripts\activate`.
-Always run commands from the project root folder.
+1. Setup and verification
+2. Configuring the Gemini API key
+3. Adding NASA resources
+4. Deployment
+5. Troubleshooting
 
----
+Commands assume Windows and must be run from the project root. On macOS or Linux, activate the environment with
+`source .venv/bin/activate`.
 
-## Part A: use and test it now
+## 1. Setup and verification
 
-### A1. One-time setup (≈3 min)
+### 1.1 Installation
 
 ```bash
 python -m venv .venv
@@ -20,100 +21,41 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-✅ The install finishes without errors, and `(.venv)` appears at the start of your prompt.
+Python 3.11 to 3.13 is required. After activation, the prompt is prefixed with `(.venv)`.
 
-### A2. Run the tests and the benchmark
+### 1.2 Tests and benchmark
 
 ```bash
 python -m pytest
 python -m flame.evaluate
 ```
 
-✅ `15 passed`. The benchmark table shows **Hybrid BM25 + LSA (RRF)** with the best MRR (≈0.98) and `100% of 40` header variants.
+Expected results: `15 passed`. The benchmark reports an MRR of approximately 0.98 for the fused BM25 + LSA method and maps
+40 of 40 header variants correctly.
 
-### A3. Start the app and click through
+### 1.3 Running the application
 
 ```bash
 streamlit run app.py
 ```
 
-Open **http://localhost:8501**:
+The application opens at http://localhost:8501. The checks below confirm that each view works.
 
-| # | Do this | You should see |
+| Step | Action | Expected result |
 |---|---|---|
-| 1 | Look at the sidebar | Habitat = *Moon Base / pressurized rover*, three priority sliders, "AI assistant: offline mode" |
-| 2 | **🎯 Rank** tab | A table sorted by score with bars. Top 3: ACME-BRE, FLEX, BASS |
-| 3 | Sidebar: Detection = 3, Prevention = 0, Suppression = 0 | SAME / SAME-R jump to the top (smoke detection studies) |
-| 4 | Change habitat to *ISS / Orion cabin* | The **atmosphere** column becomes 1.0 for every row |
-| 5 | **🗺️ Atmosphere gaps** tab, habitat *Moon Base* | Coloured boxes (test ranges), black stars (crew atmospheres), and a yellow warning that no solid-material test covers it |
-| 6 | **⚖️ Compare** tab | Side-by-side table for BASS-II / Saffire-I / FLEX and a radar chart |
-| 7 | **🤖 Ask**: *"How was smoke detection studied in microgravity?"* | An answer listing SAME / SAME-R. The caption says "Retrieved by hybrid search…" |
-| 8 | **📄 Data** tab | Full table, **Download CSV**, an "Imported resources" panel (empty for now), details box |
+| 1 | Inspect the sidebar | Habitat set to "Moon Base / pressurized rover"; three priority sliders; assistant status "offline mode" |
+| 2 | Open the Rank view | Investigations sorted by score; the top three are ACME-BRE, FLEX and BASS |
+| 3 | Set Detection to 3, Prevention and Suppression to 0 | SAME and SAME-R move to the top |
+| 4 | Select the "ISS / Orion cabin" habitat | The atmosphere column is 1.0 for all investigations |
+| 5 | Open Atmosphere gaps with the Moon Base habitat | Test envelopes, crew atmospheres, and a warning that no solid-material test covers the habitat |
+| 6 | Open Compare | Comparison table and radar chart for BASS-II, Saffire-I and FLEX |
+| 7 | In Ask, enter "How was smoke detection studied in microgravity?" | An answer that includes SAME and SAME-R, with the retrieved sources listed below it |
+| 8 | Open Data | Investigation table, CSV download, an empty "Imported resources" panel, and a details panel |
 
-### A4. (Optional) Turn on real AI answers: the Gemini API key
+### 1.4 Testing the importer
 
-The only key this project uses is a **Google Gemini API key**. It's free and needs no credit card. Without it, everything still
-works, and the 🤖 Ask tab gives an offline answer (a list of the matching investigations) instead of a written one.
-
-**Step 1: get the key**
-1. Go to https://aistudio.google.com/apikey and sign in with any Google account.
-2. Click **Create API key**. If it asks for a project, choose any or create one.
-3. Copy the key. It's a long string starting with `AIza…`.
-
-**Step 2: paste it where the app can read it (on your PC)**
-
-Create the file **`.streamlit/secrets.toml`** inside the project folder, next to `app.py`. Run these from the project root:
-
-```bash
-mkdir .streamlit
-notepad .streamlit\secrets.toml
-```
-
-Notepad asks to create the file; click **Yes**. Paste this one line with your key inside the quotes, then save:
-
-```toml
-GEMINI_API_KEY = "AIza...your-key..."
-```
-
-The result should look like this:
-
-```
-nasa_space_challange/
-├── app.py
-└── .streamlit/
-    └── secrets.toml      ← contains GEMINI_API_KEY = "..."
-```
-
-**Step 3: check it works**
-1. Restart the app: press `Ctrl+C` in the terminal, then run `streamlit run app.py` again.
-2. The sidebar should say **"AI assistant: Gemini ✅"** instead of "offline mode".
-3. In 🤖 Ask, type a question. You get a written answer with `[IDs]`. If Gemini ever cites something it wasn't given, a
-   ⚠️ *Citation check* line appears under the answer.
-
-**Where the key goes in each situation**
-
-| Where the app runs | Where to paste the key |
-|---|---|
-| Your PC | `.streamlit/secrets.toml`, as above |
-| Streamlit Cloud (the live link) | App → **⋮ → Settings → Secrets** (or *Advanced settings → Secrets* while deploying). Paste the same `GEMINI_API_KEY = "..."` line and save. The app restarts on its own |
-| Terminal only (alternative) | PowerShell: `$env:GEMINI_API_KEY="AIza..."`, then `streamlit run app.py` in the same window |
-
-**Optional second setting:** if Google retires the default model (`gemini-2.5-flash`), add a second line with a current model
-name from https://ai.google.dev/gemini-api/docs/models:
-
-```toml
-GEMINI_MODEL = "gemini-x.x-flash"
-```
-
-**Keep the key safe**
-- `.streamlit/secrets.toml` is in `.gitignore`, so git never uploads it. **Never** paste the key into `app.py` or any other code file,
-  the README, or a commit.
-- If a key leaks (for example, it gets pushed to GitHub), delete it in AI Studio and create a new one.
-- The free tier has rate limits. If you hit one, you'll see *"AI call failed"* and the offline answer, and it works again after a minute.
-
-### A5. Try the "any format" importer
-
-1. Create `data/resources/sample.csv` with this content (semicolons, a fraction, kPa and mm/s are deliberate):
+1. Create `data/resources/sample.csv` with the content below. The semicolon delimiter, oxygen fraction, kPa and mm/s are
+   intentional.
 
    ```
    Experiment;Sample material;Oxygen mole fraction;Pressure [kPa];Flow velocity (mm/s)
@@ -122,109 +64,165 @@ GEMINI_MODEL = "gemini-x.x-flash"
    New Rover Test;Nomex;0.30;70.3;100
    ```
 
-2. Click **🔄 Reload data/resources** in the sidebar.
-3. Check:
-   - **📄 Data → Imported resources**: 3 rows with O₂ 17–30 %, pressure ≈14.7 / 10.2 psi, flow 5–12 cm/s
-   - **🎯 Rank**: a new *New Rover Test* row appears, and BASS-II now has O₂ 17–19
-4. **Delete `sample.csv` afterwards.** It's fake data.
+2. Click "Reload data/resources" in the sidebar.
+3. Verify the result:
+   - **Data view → Imported resources:** three rows with oxygen 17–30%, pressure 14.7 and 10.2 psi, and flow 5–12 cm/s.
+   - **Rank view:** a new "New Rover Test" entry, and BASS-II with an oxygen range of 17–19%.
+4. Delete `sample.csv`. It is test data only.
 
----
+## 2. Configuring the Gemini API key
 
-## Part B: add the official challenge resources
+The project uses a single external service, the Google Gemini API, to generate answers in the Ask view. A key is free and does not
+require a payment method. Without a key, the Ask view returns an extractive summary of the retrieved investigations, and all other
+features work normally.
 
-### B1. Collect
+### 2.1 Obtaining a key
 
-- Download tables (CSV / Excel / JSON) and documents (PDF / DOCX) from the challenge's **Resources** tab and NASA PSI.
-- Web pages: save them as **HTML** (Ctrl+S) or paste the text into a `.txt` file.
-- Files over ~50 MB: keep only the useful columns or rows and save a smaller CSV (GitHub and Streamlit have size limits).
+1. Go to https://aistudio.google.com/apikey and sign in with a Google account.
+2. Select "Create API key" and choose or create a project if prompted.
+3. Copy the key. It begins with `AIza`.
 
-### B2. Load
+### 2.2 Local configuration
 
-Put everything in **`data/resources/`** (subfolders are fine) and click **🔄 Reload data/resources**.
+Create `.streamlit/secrets.toml` in the project root:
 
-| You drop… | What happens |
+```bash
+mkdir .streamlit
+notepad .streamlit\secrets.toml
+```
+
+Add the following line, with your key between the quotation marks, and save the file:
+
+```toml
+GEMINI_API_KEY = "AIza..."
+```
+
+The file must be located at `.streamlit/secrets.toml`, alongside `app.py`.
+
+### 2.3 Verification
+
+Restart the application (stop it with Ctrl+C, then run `streamlit run app.py` again). The sidebar status changes from "offline mode"
+to "Gemini". Questions in the Ask view now return generated answers with bracketed investigation identifiers. If an answer cites an
+identifier that was not retrieved, a citation warning is shown beneath it.
+
+### 2.4 Key location by environment
+
+| Environment | Location |
 |---|---|
-| **Tables** (`.csv .tsv .xlsx .xls .json`) with test conditions | Each row counts as one test. Each investigation's O₂ / pressure / flow ranges are **recomputed from the rows** and it's marked `verified`. Unknown investigation names become new records |
-| **Tables without those columns** | Become searchable text for the Ask tab |
-| **Documents** (`.pdf .docx .txt .md .html`) | Text is split into ~1500-character passages. Ask searches and cites them |
-| **Anything else** (images, zip…) | Listed as *skipped*. Nothing breaks |
+| Local machine | `.streamlit/secrets.toml` |
+| Streamlit Community Cloud | App settings → Secrets (or Advanced settings → Secrets during deployment), with the same line |
+| Single terminal session | `$env:GEMINI_API_KEY="AIza..."` in PowerShell, then start the app in the same window |
 
-How headers are recognised (`ALIASES` and `UNITS` in `flame/importer.py`; case and punctuation are ignored):
+### 2.5 Model selection
 
-| Column | Header words | Units converted |
+The default model is `gemini-2.5-flash`. If it is retired, add a current model name, as listed at
+https://ai.google.dev/gemini-api/docs/models, to the same secrets file:
+
+```toml
+GEMINI_MODEL = "model-name"
+```
+
+### 2.6 Security
+
+- `.streamlit/secrets.toml` is excluded by `.gitignore`. Do not place the key in source files, documentation or commits.
+- If a key is exposed, revoke it in Google AI Studio and create a new one.
+- The free tier is rate-limited. When a limit is reached, the application shows the extractive answer until requests are accepted again.
+
+## 3. Adding NASA resources
+
+### 3.1 Collecting files
+
+- Download tables (CSV, Excel, JSON) and documents (PDF, DOCX) from the challenge Resources page and NASA PSI.
+- Save web pages as HTML, or copy their text into a `.txt` file.
+- For files larger than about 50 MB, keep only the required rows or columns. GitHub and Streamlit Community Cloud impose size limits.
+
+### 3.2 Loading
+
+Place the files in `data/resources/` (subfolders are supported) and click "Reload data/resources".
+
+| Input | Handling |
+|---|---|
+| Tables with test conditions (`.csv`, `.tsv`, `.xlsx`, `.xls`, `.json`) | Each row is treated as a test. Investigation condition ranges are recomputed from the rows, and the record is marked verified. Unrecognised investigations are added as new records. |
+| Tables without condition columns | Indexed as text for the Ask view |
+| Documents (`.pdf`, `.docx`, `.txt`, `.md`, `.html`) | Split into passages of about 1,500 characters and indexed for the Ask view |
+| Other formats | Listed as skipped |
+
+Column recognition is defined by `ALIASES` and `UNITS` in `flame/importer.py`. Matching ignores case and punctuation.
+
+| Column | Header keywords | Unit handling |
 |---|---|---|
-| investigation | investigation, experiment, payload, project, study | (file name if missing) |
-| fuel | fuel, material, sample | |
-| O₂ | o2, oxygen, xo2 | % or 0–1 fraction |
+| investigation | investigation, experiment, payload, project, study | File name is used if absent |
+| fuel | fuel, material, sample | — |
+| oxygen | o2, oxygen, xo2 | Percent or mole fraction |
 | pressure | pressure, press | psi (default), kPa, MPa, bar, atm |
 | flow | flow, velocity, speed | cm/s (default), mm/s, m/s |
 
-### B3. Check what loaded (📄 Data → Imported resources)
+### 3.3 Reviewing the import
 
-| You see | Meaning | Do this |
+Open **Data → Imported resources**.
+
+| Observation | Cause | Action |
 |---|---|---|
-| Rows in the test table | ✅ Recognised | Sanity-check the numbers (O₂ 0–100 %, psi, cm/s) |
-| A table **missing** from the test table | Headers not recognised | Add the header's key word to `ALIASES` (one line), then Reload |
-| ⚠️ *Skipped …* | Unsupported format or scanned PDF | Convert it to CSV/TXT, or ignore it |
-| Duplicates like "BASS 2" vs "BASS-II" | Name differs from our id | Rename the value in the file to the id in `data/investigations.json` |
+| Rows appear in the test table | File recognised | Check that values are plausible (oxygen 0–100%, pressure in psi, flow in cm/s) |
+| A table is absent from the test table | Headers not recognised | Add the header keyword to `ALIASES`, then reload |
+| File listed as skipped | Unsupported format or image-only PDF | Convert it to CSV or text, or omit it |
+| Duplicate investigations (e.g. "BASS 2" and "BASS-II") | Name differs from the existing identifier | Use the identifier from `data/investigations.json` in the source file |
 
-Then, for records the files didn't cover, edit `data/investigations.json` by hand (year, fuels, findings) and set
-`"verified": true`. Add new investigations by copying an existing block.
+For investigations not covered by imported data, update `data/investigations.json` manually and set `"verified": true`. New
+investigations can be added by copying an existing record.
 
-### B4. Re-test and re-measure
+### 3.4 Re-running tests and evaluation
 
 ```bash
 python -m pytest
 python -m flame.evaluate
 ```
 
-If you added investigations, add 1–2 questions for them to `tests/benchmark.json`, writing the expected ids **before** you look
-at the results. Rerun, and update the numbers in `README.md`.
+When adding investigations, also add one or two questions for them to `tests/benchmark.json`. Record the expected identifiers
+before running the evaluation, then update the results table in `README.md`.
 
-### B5. Ship
+### 3.5 Publishing changes
 
 ```bash
 git add -A
-git commit -m "Add official NASA resources"
+git commit -m "Add NASA resources"
 git push
 ```
 
-Streamlit Cloud redeploys automatically and GitHub Actions reruns the tests.
+Streamlit Community Cloud redeploys automatically after each push, and GitHub Actions runs the test suite.
 
----
+## 4. Deployment
 
-## Part C: publish for the first time
+### 4.1 GitHub
 
-**GitHub:**
-1. Create a **public** repo at https://github.com/new (no README).
-2. Run:
+1. Create a repository at https://github.com/new without initialising a README.
+2. Add the remote and push:
 
-```bash
-git remote add origin https://github.com/<your-username>/<repo-name>.git
-git push -u origin main
-```
+   ```bash
+   git remote add origin https://github.com/<username>/<repository>.git
+   git push -u origin main
+   ```
 
-3. In `README.md` line 3, replace `<your-username>/flame-in-freefall` with your username and repo name, then commit and push.
-4. The repo's **Actions** tab should turn green.
+3. In `README.md`, replace `<your-username>/flame-in-freefall` in the badge URL with your username and repository name, then commit and push.
+4. Confirm that the workflow in the Actions tab passes.
 
-**Streamlit Community Cloud (free):**
-1. Go to https://share.streamlit.io, sign in with GitHub, and click **Create app** → pick the repo, branch `main`, file `app.py`.
-2. **Advanced settings → Secrets:** `GEMINI_API_KEY = "your-key"`.
-3. Click **Deploy**. You get a `*.streamlit.app` URL in 2–3 minutes. Run the A3 checklist on it.
+### 4.2 Streamlit Community Cloud
 
----
+1. Sign in at https://share.streamlit.io with GitHub and create an app from the repository (branch `main`, file `app.py`).
+2. Under Advanced settings → Secrets, add `GEMINI_API_KEY = "..."`.
+3. Deploy. The application is available at a `*.streamlit.app` address within a few minutes. Repeat the checks in section 1.3 on the deployed version.
 
-## Part D: troubleshooting
+## 5. Troubleshooting
 
-| Problem | Fix |
+| Problem | Resolution |
 |---|---|
-| `streamlit: command not found` | Activate the venv, or run `python -m streamlit run app.py` |
-| `ModuleNotFoundError: flame` | Run from the project root, and use `python -m pytest` (not bare `pytest`) |
-| Offline mode although a key is set | The file must be exactly `.streamlit/secrets.toml`, next to `app.py`. Windows may have saved it as `secrets.toml.txt`: check with `dir .streamlit` and rename it. Then restart the app |
-| *"AI call failed (ClientError)"* right after adding the key | The key is wrong or has extra spaces. Copy it again from AI Studio, keeping the quotes: `GEMINI_API_KEY = "AIza..."` |
-| *"AI call failed (…)"* | Quota or bad key. The offline answer is still shown. Retry later or check the key |
-| AI fails with a model error / 404 | Google retired the model. Pick a current Flash model at https://ai.google.dev/gemini-api/docs/models and add `GEMINI_MODEL = "name"` to the secrets |
-| Changes in `data/` not showing | Click **🔄 Reload data/resources** (data is cached) |
-| `pip install` fails | Use Python 3.11–3.13 |
-| A test fails after editing the JSON | The error names the record id and the bad field |
-| Benchmark test fails after adding data | Rankings changed. Rerun `python -m flame.evaluate`, and only relax the threshold in `tests/test_core.py` if the drop is real and explained |
+| `streamlit: command not found` | Activate the virtual environment, or run `python -m streamlit run app.py` |
+| `ModuleNotFoundError: flame` | Run commands from the project root and use `python -m pytest` |
+| Assistant remains in offline mode | Confirm the file is named exactly `.streamlit/secrets.toml` (Windows may save it as `secrets.toml.txt`; check with `dir .streamlit`), then restart the application |
+| "AI call failed (ClientError)" after adding a key | The key is invalid or contains extra characters. Copy it again and keep the quotation marks |
+| "AI call failed" during use | Rate limit or network error. The extractive answer is shown; retry later |
+| Model error or HTTP 404 | The model has been retired. Set `GEMINI_MODEL` as described in section 2.5 |
+| Changes in `data/` are not reflected | Click "Reload data/resources"; data is cached |
+| `pip install` fails | Use Python 3.11 to 3.13 |
+| A test fails after editing the dataset | The error message identifies the record and field |
+| The benchmark test fails after adding data | Rankings have changed. Re-run `python -m flame.evaluate` and review the results. Relax the threshold in `tests/test_core.py` only if the change is understood |

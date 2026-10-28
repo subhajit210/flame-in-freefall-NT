@@ -86,10 +86,10 @@ is a checklist and a draft text to adapt.
 
 ### Before the deadline
 
-- [ ] **Load the official resources** (docs/GUIDE.md Part B) and check the data. Remove or clearly label anything still approximate.
+- [ ] **Load the official resources** (docs/GUIDE.md section 3) and check the data. Remove or clearly label anything still approximate.
 - [ ] Rerun `python -m pytest` and `python -m flame.evaluate`, and update the numbers in `README.md` and `notes/CV_NOTES.md` if they changed.
-- [ ] **Deploy** (docs/GUIDE.md Part C) and test the live link in a private browser window.
-- [ ] Test the **Ask** tab with your Gemini key on the live app (docs/GUIDE.md A4).
+- [ ] **Deploy** (docs/GUIDE.md section 4) and test the live link in a private browser window.
+- [ ] Test the **Ask** tab with your Gemini key on the live app (docs/GUIDE.md section 2).
 - [ ] Record a **short demo video**. Check the official length limit. Suggested script below.
 - [ ] Make a few **slides** if required: problem, solution, demo screenshots, key insight, tech, next steps.
 - [ ] Fill in the **project page**: title, description (draft below), links to the live app, GitHub repo and video.

@@ -1,38 +1,41 @@
-# How it works: a code walkthrough
+# Technical Overview
 
-Read this when you want to understand or change the code. Each file is short and has one job.
+This document describes the code structure, data model and algorithms. Each module has a single responsibility, and none
+exceeds about 200 lines.
 
 ## Data flow
 
 ```
-data/investigations.json ─┐
-                          ├─► flame/data.py: load_dataset() ─► records (list of dicts)
-data/resources/*  ────────┘      uses flame/importer.py           │
-   (CSV/Excel/JSON/PDF/…)        • tables  → test rows → update ranges
-                                 • docs    → text passages
-                                                                  ▼
-                 flame/ranking.py  rank(), coverage_gaps()   → 🎯 Rank, 🗺️ Gaps tabs
-                 flame/search.py   SearchIndex: BM25 + LSA → RRF   → 🤖 Ask tab (retrieval)
-                 flame/assistant.py answer()  (Gemini or offline) + citation guardrail
-                 app.py            Streamlit UI that calls all of the above
+data/investigations.json ──┐
+                           ├──> flame/data.py: load_dataset() ──> investigation records
+data/resources/* ──────────┘       uses flame/importer.py
+                                     tables    -> test rows -> updated condition ranges
+                                     documents -> text passages
+
+records ──> flame/ranking.py     rank(), coverage_gaps()       -> Rank, Atmosphere gaps views
+        ──> flame/search.py      BM25 + LSA, fused by RRF      -> Ask view (retrieval)
+        ──> flame/assistant.py   Gemini answer + citation check, or extractive fallback
+app.py: Streamlit interface that calls the modules above
 ```
 
-## Files
+## Modules
 
-| File | What it does | Main functions |
+| File | Responsibility | Main functions |
 |---|---|---|
-| `app.py` | The whole UI: sidebar (habitat, priorities, weights) and 5 tabs. Holds no science logic. | — |
-| `flame/data.py` | Loads the JSON files, validates records, flattens them into a DataFrame. | `load_dataset`, `validate`, `to_dataframe`, `record_text` |
-| `flame/importer.py` | Reads any file in `data/resources/`, maps messy column names, converts units, merges test rows into records. | `load_resources`, `match_columns`, `merge_tests` |
-| `flame/ranking.py` | The scoring model and the data-gap table. | `rank`, `atmosphere_fit`, `coverage_gaps` |
-| `flame/search.py` | Hybrid search: BM25 + LSA, fused with Reciprocal Rank Fusion, over records and document passages. | `BM25`, `VectorRanker` (TF-IDF / LSA), `rrf`, `SearchIndex` |
-| `flame/evaluate.py` | Benchmark: Hit@1/Hit@3/MRR for 4 retrieval methods plus column-mapping accuracy, using `tests/benchmark.json`. | `run`, `retrieval_metrics` |
-| `flame/assistant.py` | Builds the context from search hits and asks Gemini, or writes the offline answer. | `answer`, `offline_answer` |
-| `data/habitats.json` | Crew atmospheres (O₂ %, psi, g). | — |
-| `tests/test_core.py` | 15 tests. Messy sample files for the importer are generated on the fly. | — |
-| `tests/benchmark.json` | 25 labelled questions + 40 header variants used by `flame/evaluate.py`. | — |
+| `app.py` | User interface: sidebar controls and five views. Contains no analysis logic. | — |
+| `flame/data.py` | Loads and validates the JSON datasets; flattens records into a DataFrame. | `load_dataset`, `validate`, `to_dataframe`, `record_text` |
+| `flame/importer.py` | Reads files in `data/resources/`, maps column names, converts units, merges test rows into records. | `load_resources`, `match_columns`, `merge_tests` |
+| `flame/search.py` | BM25 and LSA retrieval over records and document passages, combined with Reciprocal Rank Fusion. | `BM25`, `VectorRanker`, `rrf`, `SearchIndex` |
+| `flame/assistant.py` | Builds the prompt from retrieved items, calls Gemini, checks citations; extractive fallback. | `answer`, `offline_answer`, `check_citations` |
+| `flame/ranking.py` | Relevance scoring and atmosphere coverage analysis. | `rank`, `atmosphere_fit`, `coverage_gaps` |
+| `flame/evaluate.py` | Retrieval benchmark (Hit@1, Hit@3, MRR) and column-mapping accuracy. | `run`, `retrieval_metrics` |
+| `data/habitats.json` | Reference crew atmospheres: oxygen fraction, pressure, gravity. | — |
+| `tests/test_core.py` | Unit tests. Importer test files are generated at runtime. | — |
+| `tests/benchmark.json` | 25 labelled questions and 40 header variants used by `flame/evaluate.py`. | — |
 
-## The record format (`data/investigations.json`)
+## Record schema
+
+Each entry in `data/investigations.json` has the following fields:
 
 ```jsonc
 {
@@ -43,38 +46,72 @@ data/resources/*  ────────┘      uses flame/importer.py       
   "variables": [...], "constants": [...], "measurements": [...], "key_findings": [...],
   "safety_pillars": {"prevention": 0-3, "detection": 0-3, "suppression": 0-3},
   "partial_gravity": 0-3, "earth_applications": [...],
-  "verified": false                   // true once checked against / computed from NASA PSI data
+  "verified": false                   // true once checked against, or derived from, PSI data
 }
 ```
 
-## The ranking formula
+`validate()` checks that required fields are present, that identifiers are unique, and that no range is reversed.
 
-For a habitat `h` and user priorities `p`:
+## Relevance ranking
 
-- `pillar = Σ p_k · pillar_k / (3 · Σ p_k)`: how well the study matches what you care about
-- `atmosphere = exp(-√((ΔO₂/10)² + (ΔP/4)²))`, where Δ is the distance from the habitat to the tested range (0 if inside)
-- `fuel`: a fixed table (solid 1.0, smoke 0.9, liquid 0.6, gas 0.5, dust 0.4, unknown 0.5)
-- `gravity`: 1 for a 0 g habitat, otherwise `partial_gravity / 3`
-- `score = (0.4·pillar + 0.3·atmosphere + 0.2·fuel + 0.1·gravity) / Σweights`. You can change the weights in the sidebar.
+For habitat *h* and user priorities *p* (each 0–3):
 
-## Common changes
-
-| I want to… | Do this |
+| Term | Definition |
 |---|---|
-| Add an investigation by hand | Copy a block in `investigations.json` and edit it. |
-| Use official data | Drop files in `data/resources/` (see `docs/GUIDE.md` Part B). |
-| Recognise a new column name / unit | Add a word to `ALIASES` / `UNITS` in `flame/importer.py`. |
-| Change the score | Edit `DEFAULT_WEIGHTS` / `FUEL_RELEVANCE` in `flame/ranking.py`. |
-| Use another LLM (Groq, Claude…) | Replace the `try:` block in `flame/assistant.py::answer`. |
-| Add a tab | Add a name to `st.tabs([...])` in `app.py` and a `with tab_x:` block. |
+| pillar | `Σ p_k · pillar_k / (3 · Σ p_k)`: agreement between the investigation's focus and the user's priorities |
+| atmosphere | `exp(-sqrt((ΔO2/10)² + (ΔP/4)²))`, where ΔO2 and ΔP are distances from the habitat to the tested range (zero inside it) |
+| fuel | Fixed relevance by fuel type: solid 1.0, smoke 0.9, liquid 0.6, gas 0.5, dust 0.4, unknown 0.5 |
+| gravity | 1 for microgravity habitats; otherwise `partial_gravity / 3` |
 
-After any change, run `python -m pytest`. After changing search or data, also run `python -m flame.evaluate` and update the numbers in `README.md`.
+```
+score = (0.4 · pillar + 0.3 · atmosphere + 0.2 · fuel + 0.1 · gravity) / Σ weights
+```
 
-## How hybrid search works (`flame/search.py`)
+The weights are defaults and can be adjusted in the sidebar.
 
-1. **BM25** scores each record by query words: rare words count more (IDF), repeating a word helps less and less (k1), and long
-   records are not favoured (b).
-2. **LSA** turns records into TF-IDF vectors, compresses them to 16 "topics" with TruncatedSVD, and compares the query by cosine
-   similarity. Records with related wording match even without shared words.
-3. **RRF** combines the two rankings: each record gets `1/(60 + rank)` from each method, summed. A record ranked well by both wins.
-4. Collections with fewer than 3 passages skip LSA (SVD needs several documents) and use BM25 only.
+`coverage_gaps()` reports, for each habitat and fuel type, the highest atmosphere fit among matching investigations. A value of 1.0
+means at least one investigation tested that exact atmosphere.
+
+## Retrieval
+
+1. **BM25** scores documents by query terms. Rare terms receive higher weight (inverse document frequency), repeated terms
+   contribute with diminishing returns (k1 = 1.5), and longer documents are normalised (b = 0.75).
+2. **LSA** represents documents as TF-IDF vectors, reduces them to 16 latent dimensions with truncated SVD, and ranks by cosine
+   similarity, so documents using related terminology can match without shared words.
+3. **Reciprocal Rank Fusion** combines the two rankings. Each document receives `1 / (60 + rank)` from each method, and the
+   contributions are summed.
+4. Collections with fewer than three passages use BM25 only, since SVD requires several documents.
+
+`VectorRanker` without SVD provides the plain TF-IDF baseline used in the evaluation.
+
+## Answer generation
+
+1. The top five investigation records and top three document passages are serialised as JSON context.
+2. Gemini receives a system instruction to answer only from that context and to cite identifiers in square brackets (temperature 0.2).
+3. `check_citations()` extracts every bracketed citation and flags any that does not match a retrieved identifier or document title.
+4. If no key is configured, or the request fails, `offline_answer()` returns the retrieved records with objectives and key findings.
+
+## Ingestion
+
+- **Tables:** `match_columns()` assigns each standard field (investigation, fuel, oxygen, pressure, flow, objective) to the first
+  column whose normalised header contains one of its keywords. `unit_factor()` reads the unit from the header and converts to psi
+  and cm/s. Oxygen values of at most 1 are treated as mole fractions.
+- **Merging:** `merge_tests()` groups rows by investigation, matches them to existing records by identifier or name (ignoring case
+  and punctuation), and replaces condition ranges with the observed minimum and maximum. Unmatched names create new records.
+- **Documents:** text is extracted (pypdf for PDF, the XML body for DOCX, tag stripping for HTML) and split into passages of about
+  1,500 characters on line boundaries.
+- **Failures:** each file is processed independently. Errors are recorded and shown in the Data view.
+
+## Common modifications
+
+| Task | Location |
+|---|---|
+| Add an investigation | Copy an existing record in `data/investigations.json` |
+| Import official data | Place files in `data/resources/` (see `docs/GUIDE.md`, section 3) |
+| Recognise a new header or unit | `ALIASES` or `UNITS` in `flame/importer.py` |
+| Change scoring | `DEFAULT_WEIGHTS` or `FUEL_RELEVANCE` in `flame/ranking.py` |
+| Use a different language model | The `try` block in `answer()` in `flame/assistant.py` |
+| Add a view | Add a label to `st.tabs([...])` in `app.py` and a corresponding `with` block |
+
+After any change, run `python -m pytest`. After changes to retrieval or data, also run `python -m flame.evaluate` and update the
+results table in `README.md`.
