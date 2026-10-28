@@ -135,10 +135,12 @@ is a checklist and a draft text to adapt.
 
 **Step 1: back up the folder** (copy `notes/` to Google Drive or another folder outside the project).
 
-**Step 2: rebuild the history without notes/** (run in the project root; it keeps all your current code):
+**Step 2: rebuild the history without notes/**
+
+First open `.gitignore` in a text editor, add a new last line `notes/`, and save. Then run these in the project root (they keep all
+your current code):
 
 ```bash
-echo notes/>> .gitignore
 git rm -r -q --cached notes
 git checkout --orphan clean
 git add -A
