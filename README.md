@@ -1,97 +1,171 @@
-# 🔥 Flame in Freefall
+# Flame in Freefall
 
 ![tests](https://github.com/<your-username>/flame-in-freefall/actions/workflows/tests.yml/badge.svg)
 
-**NASA Space Apps Challenge 2026: an AI-assisted dashboard of fire-safety insights from microgravity combustion data**
+A decision-support dashboard that organises NASA's microgravity combustion experiments for spacecraft and habitat fire safety.
+Developed for the NASA Space Apps Challenge 2026 ("Flame in Freefall").
 
-Since the 2000s NASA has flown many combustion experiments on the ISS (BASS, Saffire, FLEX, ACME, SAME…). The results sit in NASA's
-Physical Science Informatics (PSI) database, but they are hard to find, compare and interpret. This dashboard **ranks, compares
-and explains** those investigations for a chosen crew habitat, such as the ISS, a Moon base at 30% O₂ / 10.2 psi, or Mars. It also
-shows **where the data runs out**.
+## Motivation
 
-## Features
+NASA has conducted combustion experiments aboard the International Space Station for more than two decades. These include BASS,
+Saffire, FLEX, ACME and SAME. Their results are published through the Physical Science Informatics (PSI) system, but the
+investigations differ in fuels, hardware, atmospheres and measurements, which makes them difficult to locate and compare.
 
-| Tab | What it does |
+The question becomes more pressing with planned lunar habitats. To shorten spacesuit pre-breathe, the Moon base and pressurized
+rovers are expected to operate at roughly 30% oxygen and 10.2 psi, compared with 20.9% oxygen and 14.7 psi on Earth. Materials are
+considerably more flammable in that atmosphere, and it is not obvious which existing experiments remain applicable.
+
+This project addresses three questions for a chosen crew environment:
+
+1. Which investigations are most relevant to its fire-safety needs?
+2. Which atmospheric conditions are covered by existing test data, and which are not?
+3. What do the investigations report on a given topic, with sources?
+
+## Functionality
+
+The application is a Streamlit dashboard with five views:
+
+| View | Description |
 |---|---|
-| 🎯 **Rank** | Scores every investigation for the selected habitat and safety priority (prevention / detection / suppression). The score is transparent and can be tuned. |
-| 🗺️ **Atmosphere gaps** | Plots each experiment's tested O₂ and pressure range against the crew atmospheres, and flags habitats with no test data. |
-| ⚖️ **Compare** | Shows 2–4 investigations side by side: conditions, measurements, shared variables, and a radar chart of safety relevance. |
-| 🤖 **Ask** | Plain-English questions answered by Gemini from retrieved NASA records, with citations checked by a guardrail. Works offline without a key. |
-| 📄 **Data** | Filterable table, CSV export for modelling, imported resource files, and full details per investigation. |
+| Rank | Scores all investigations for a selected habitat and safety priority (prevention, detection, suppression). Weights are user-adjustable. |
+| Atmosphere gaps | Plots each investigation's tested oxygen and pressure range against crew atmospheres, and reports coverage per fuel type. |
+| Compare | Side-by-side comparison of two to four investigations: conditions, measurements, shared variables. |
+| Ask | Natural-language questions answered from retrieved investigation records, with citations. |
+| Data | Filterable table with CSV export, imported resource files, and per-investigation detail. |
 
-**Key finding:** the planned Moon-base atmosphere (30% O₂, 10.2 psi) lies outside every solid-material test in this curated dataset (all at ≤21% O₂ and sea-level pressure), even though fabrics and
-plastics are the main fire load in a cabin. To be re-checked against NASA PSI as data is added.
+## Method
 
-## How it works
+### Retrieval
 
-1. **Hybrid retrieval** (`flame/search.py`): **BM25** keyword ranking plus **LSA** (TF-IDF reduced with TruncatedSVD, which
-   matches on meaning), merged with **Reciprocal Rank Fusion**.
-2. **RAG assistant** (`flame/assistant.py`): only the retrieved records go to Gemini, which must cite them. A **citation
-   guardrail** flags any citation that wasn't retrieved. Without an API key it falls back to an offline answer.
-3. **Ranking model** (`flame/ranking.py`): `score = 0.4·pillar + 0.3·atmosphere + 0.2·fuel + 0.1·gravity`, where atmosphere fit is
-   `exp(-distance)` from the habitat's (O₂, pressure) to each tested range. The LLM never sets scores.
-4. **Any-format ingestion** (`flame/importer.py`): CSV, TSV, Excel, JSON, PDF, DOCX, TXT, MD and HTML. Messy column names are
-   matched and units converted. Test tables update the condition ranges, and documents become searchable.
+Investigation records and imported documents are indexed with two complementary methods:
 
-Full code walkthrough: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md).
+- **Okapi BM25** (k1 = 1.5, b = 0.75), implemented directly, for exact term matching.
+- **Latent Semantic Analysis**: TF-IDF vectors reduced to 16 dimensions with truncated SVD, compared by cosine similarity, which
+  matches related terminology.
 
-## Measured results
+The two rankings are combined with **Reciprocal Rank Fusion** (k = 60), which merges ranks rather than raw scores and so needs no
+score calibration.
 
-`python -m flame.evaluate` on 25 hand-labelled, paraphrased questions:
+### Question answering
 
-| Retrieval method | Hit@1 | Hit@3 | MRR |
+The top-ranked records are passed to Google Gemini with an instruction to answer only from that context and to cite investigation
+identifiers. Each citation in the response is then checked against the retrieved set, and any citation not in it is flagged. If no
+API key is configured, or the request fails, the system returns an extractive summary of the retrieved records.
+
+### Relevance ranking
+
+Ranking is deterministic and independent of the language model. For a habitat *h* and investigation *i*:
+
+```
+score = 0.4 · pillar + 0.3 · atmosphere + 0.2 · fuel + 0.1 · gravity
+
+atmosphere = exp( -sqrt( (ΔO2 / 10)² + (ΔP / 4)² ) )
+```
+
+- ΔO2 (percentage points) and ΔP (psi) are the distances from the habitat's atmosphere to the investigation's tested range, and are
+  zero inside it.
+- *pillar* reflects the user's prevention, detection and suppression priorities.
+- *fuel* reflects how representative the fuel is of cabin fire loads.
+- *gravity* rewards investigations that inform partial-gravity conditions.
+
+All terms lie in [0, 1].
+
+### Data ingestion
+
+Files placed in `data/resources/` are loaded automatically:
+
+- **Tables** (CSV, TSV, Excel, JSON): column names are matched by keyword, and pressure (kPa, MPa, bar, atm) and flow (mm/s, m/s)
+  are converted to psi and cm/s. Per-test rows replace each investigation's condition ranges with the measured minimum and maximum.
+- **Documents** (PDF, DOCX, TXT, Markdown, HTML): split into passages and added to the retrieval index.
+
+Unreadable files are reported rather than causing failure.
+
+## Evaluation
+
+Retrieval was evaluated on 25 natural-language questions that avoid investigation names. Each is labelled with the investigation(s)
+that answer it, and the labels were fixed before any method was run. Reported metrics are Hit@k (the share of questions with a
+correct investigation in the top *k*) and Mean Reciprocal Rank.
+
+| Method | Hit@1 | Hit@3 | MRR |
 |---|---|---|---|
-| TF-IDF (baseline) | 80% | 100% | 0.893 |
-| BM25 | 92% | 100% | 0.960 |
-| LSA | 96% | 96% | 0.970 |
-| **Hybrid BM25 + LSA (RRF)** | **96%** | **100%** | **0.980** |
+| TF-IDF (baseline) | 0.80 | 1.00 | 0.893 |
+| BM25 | 0.92 | 1.00 | 0.960 |
+| LSA | 0.96 | 0.96 | 0.970 |
+| BM25 + LSA (RRF) | 0.96 | 1.00 | 0.980 |
 
-The column mapper recognises 100% of 40 messy header variants. All 15 tests run on every push through GitHub Actions.
+The fused method is the only one that is best on all three metrics. The benchmark is small and was labelled by the author, so the
+results indicate the methods' relative behaviour rather than absolute accuracy. Results are deterministic and can be reproduced
+with `python -m flame.evaluate`.
 
-## Quick start
+## Observation
+
+In the current dataset, all solid-material investigations (BASS, BASS-II, Saffire-I to III) were conducted at or below 21% oxygen
+and near sea-level pressure. None therefore covers the projected lunar habitat atmosphere, although solid materials such as fabrics,
+foams and wiring make up most of a cabin's fire load. Tests above 30% oxygen in the dataset used gaseous or liquid fuels only. This
+observation is limited to the curated dataset and should be re-examined as PSI data, including later Saffire flights, is added.
+
+## Installation
+
+Requires Python 3.11 to 3.13.
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Open http://localhost:8501. Run the tests with `python -m pytest`.
+The application opens at http://localhost:8501.
 
-For the optional AI answers, get a free Gemini API key at https://aistudio.google.com/apikey and put it in
-`.streamlit/secrets.toml` as `GEMINI_API_KEY = "..."`. Step-by-step instructions, including Streamlit Cloud, are in
-[docs/GUIDE.md](docs/GUIDE.md) step A4. To add NASA data, drop files into `data/resources/` and click **Reload**.
+To enable generated answers, create `.streamlit/secrets.toml` containing `GEMINI_API_KEY = "..."`. A free key is available from
+Google AI Studio. Without a key, all other functionality is unaffected.
 
-Step-by-step instructions for running, testing, adding NASA data and deploying: **[docs/GUIDE.md](docs/GUIDE.md)**.
+Tests and evaluation:
 
-## Project structure
-
-```
-flame-in-freefall/
-├── app.py                  Streamlit dashboard (5 tabs)
-├── requirements.txt
-├── flame/                  core logic
-│   ├── data.py             load + validate the JSON data
-│   ├── importer.py         any-format ingestion: tables + documents
-│   ├── search.py           hybrid retrieval: BM25 + LSA + RRF
-│   ├── assistant.py        Gemini RAG + citation guardrail + offline fallback
-│   ├── ranking.py          relevance score + coverage-gap analysis
-│   └── evaluate.py         retrieval benchmark (Hit@k, MRR)
-├── data/
-│   ├── investigations.json 20 ISS combustion investigations
-│   ├── habitats.json       6 crew atmospheres
-│   └── resources/          ← drop official NASA files here
-├── tests/
-│   ├── test_core.py        15 tests
-│   └── benchmark.json      labelled questions for evaluate.py
-└── docs/
-    ├── GUIDE.md            run, test, add data, deploy
-    └── HOW_IT_WORKS.md     code walkthrough
+```bash
+python -m pytest
+python -m flame.evaluate
 ```
 
-## Data note
+Detailed instructions for setup, adding NASA data, deployment and troubleshooting are in [docs/GUIDE.md](docs/GUIDE.md). A
+description of the code is in [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md).
 
-`data/investigations.json` was curated from public NASA descriptions. Condition ranges and years are approximate
-(`"verified": false`) until checked against NASA PSI (https://psi.ssl.nasa.gov). Records updated from imported test data are
-marked `verified`.
+## Repository structure
+
+```
+app.py                     Streamlit application
+flame/
+    data.py                dataset loading and validation
+    importer.py            ingestion of tables and documents
+    search.py              BM25, LSA and rank fusion
+    assistant.py           retrieval-augmented answering and citation check
+    ranking.py             relevance scoring and coverage analysis
+    evaluate.py            retrieval benchmark
+data/
+    investigations.json    20 ISS combustion investigations
+    habitats.json          6 reference crew atmospheres
+    resources/             input folder for NASA data files
+tests/
+    test_core.py           unit tests
+    benchmark.json         labelled evaluation questions
+docs/                      user guide and code walkthrough
+```
+
+## Data and limitations
+
+- `data/investigations.json` was compiled from public NASA descriptions of each investigation. Test condition ranges and years are
+  approximate and are marked `"verified": false` until checked against PSI. Records updated from imported test data are marked as
+  verified.
+- Relevance scores per safety pillar (0–3) are editorial assessments based on each investigation's stated objectives.
+- PSI does not yet contain partial-gravity combustion data. The E-FIELD investigation, which uses electric fields to mimic buoyancy,
+  is the closest available proxy.
+
+## References
+
+- NASA Physical Science Informatics: https://psi.ssl.nasa.gov
+- Robertson, S., & Zaragoza, H. (2009). The Probabilistic Relevance Framework: BM25 and Beyond. *Foundations and Trends in
+  Information Retrieval*, 3(4).
+- Deerwester, S., et al. (1990). Indexing by Latent Semantic Analysis. *Journal of the American Society for Information Science*,
+  41(6).
+- Cormack, G. V., Clarke, C. L. A., & Büttcher, S. (2009). Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning
+  Methods. *Proceedings of SIGIR 2009*.
