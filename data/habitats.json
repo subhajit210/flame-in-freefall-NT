@@ -1,0 +1,11 @@
+{
+  "_note": "Reference crew atmospheres. Values from public NASA descriptions and the challenge brief; Mars values are an assumption (same as the exploration atmosphere).",
+  "habitats": [
+    {"id": "earth", "name": "Earth (sea level)", "o2_pct": 20.9, "pressure_psi": 14.7, "gravity_g": 1.0, "ventilation_cm_s": 0, "notes": "Baseline. Buoyancy drives flow; ground flammability tests (e.g. NASA-STD-6001 Test 1) are done here."},
+    {"id": "iss", "name": "ISS / Orion cabin", "o2_pct": 21.0, "pressure_psi": 14.7, "gravity_g": 0.0, "ventilation_cm_s": 10, "notes": "Microgravity, sea-level air. Ventilation fans are the only source of flow (~5-20 cm/s)."},
+    {"id": "lunar_base", "name": "Moon Base / pressurized rover", "o2_pct": 30.0, "pressure_psi": 10.2, "gravity_g": 0.16, "ventilation_cm_s": 10, "notes": "Challenge brief: >=30% O2 at <=10.2 psi to shorten spacesuit pre-breathe. ~40% more O2 than Earth air."},
+    {"id": "exploration", "name": "Exploration atmosphere (8.2 psi / 34%)", "o2_pct": 34.0, "pressure_psi": 8.2, "gravity_g": 0.16, "ventilation_cm_s": 10, "notes": "NASA Exploration Atmospheres Working Group recommendation for frequent-EVA vehicles."},
+    {"id": "mars", "name": "Mars habitat (assumed)", "o2_pct": 34.0, "pressure_psi": 8.2, "gravity_g": 0.38, "ventilation_cm_s": 10, "notes": "Assumed to match the exploration atmosphere; partial gravity 0.38 g."},
+    {"id": "spacesuit", "name": "Spacesuit", "o2_pct": 100.0, "pressure_psi": 4.3, "gravity_g": 0.16, "ventilation_cm_s": 0, "notes": "100% O2 at 4.3 psi. Highest O2 fraction humans breathe in exploration."}
+  ]
+}
