@@ -59,8 +59,9 @@ streamlit run app.py
 
 Open http://localhost:8501. Run the tests with `python -m pytest`.
 
-For the optional AI, create `.streamlit/secrets.toml` with `GEMINI_API_KEY = "..."`; a free key is available at
-https://aistudio.google.com/apikey. To add NASA data, drop files into `data/resources/` and click **Reload**.
+For the optional AI answers, get a free Gemini API key at https://aistudio.google.com/apikey and put it in
+`.streamlit/secrets.toml` as `GEMINI_API_KEY = "..."`. Step-by-step instructions, including Streamlit Cloud, are in
+[docs/GUIDE.md](docs/GUIDE.md) step A4. To add NASA data, drop files into `data/resources/` and click **Reload**.
 
 Step-by-step instructions for running, testing, adding NASA data and deploying: **[docs/GUIDE.md](docs/GUIDE.md)**.
 

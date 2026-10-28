@@ -50,14 +50,66 @@ Open **http://localhost:8501**:
 | 7 | **🤖 Ask**: *"How was smoke detection studied in microgravity?"* | An answer listing SAME / SAME-R. The caption says "Retrieved by hybrid search…" |
 | 8 | **📄 Data** tab | Full table, **Download CSV**, an "Imported resources" panel (empty for now), details box |
 
-### A4. (Optional) Turn on real AI answers
+### A4. (Optional) Turn on real AI answers: the Gemini API key
 
-1. Get a free key at https://aistudio.google.com/apikey (Google account, no card).
-2. Create the file `.streamlit/secrets.toml` (the folder starts with a dot) containing one line:
-   `GEMINI_API_KEY = "your-key"`. It is git-ignored, so it never gets pushed.
-3. Restart the app. The sidebar shows **"AI assistant: Gemini ✅"**.
-4. Ask again: you get a written answer with `[IDs]`. If Gemini cites something that wasn't retrieved, a ⚠️ *Citation check*
-   line appears.
+The only key this project uses is a **Google Gemini API key**. It's free and needs no credit card. Without it, everything still
+works, and the 🤖 Ask tab gives an offline answer (a list of the matching investigations) instead of a written one.
+
+**Step 1: get the key**
+1. Go to https://aistudio.google.com/apikey and sign in with any Google account.
+2. Click **Create API key**. If it asks for a project, choose any or create one.
+3. Copy the key. It's a long string starting with `AIza…`.
+
+**Step 2: paste it where the app can read it (on your PC)**
+
+Create the file **`.streamlit/secrets.toml`** inside the project folder, next to `app.py`. Run these from the project root:
+
+```bash
+mkdir .streamlit
+notepad .streamlit\secrets.toml
+```
+
+Notepad asks to create the file; click **Yes**. Paste this one line with your key inside the quotes, then save:
+
+```toml
+GEMINI_API_KEY = "AIza...your-key..."
+```
+
+The result should look like this:
+
+```
+nasa_space_challange/
+├── app.py
+└── .streamlit/
+    └── secrets.toml      ← contains GEMINI_API_KEY = "..."
+```
+
+**Step 3: check it works**
+1. Restart the app: press `Ctrl+C` in the terminal, then run `streamlit run app.py` again.
+2. The sidebar should say **"AI assistant: Gemini ✅"** instead of "offline mode".
+3. In 🤖 Ask, type a question. You get a written answer with `[IDs]`. If Gemini ever cites something it wasn't given, a
+   ⚠️ *Citation check* line appears under the answer.
+
+**Where the key goes in each situation**
+
+| Where the app runs | Where to paste the key |
+|---|---|
+| Your PC | `.streamlit/secrets.toml`, as above |
+| Streamlit Cloud (the live link) | App → **⋮ → Settings → Secrets** (or *Advanced settings → Secrets* while deploying). Paste the same `GEMINI_API_KEY = "..."` line and save. The app restarts on its own |
+| Terminal only (alternative) | PowerShell: `$env:GEMINI_API_KEY="AIza..."`, then `streamlit run app.py` in the same window |
+
+**Optional second setting:** if Google retires the default model (`gemini-2.5-flash`), add a second line with a current model
+name from https://ai.google.dev/gemini-api/docs/models:
+
+```toml
+GEMINI_MODEL = "gemini-x.x-flash"
+```
+
+**Keep the key safe**
+- `.streamlit/secrets.toml` is in `.gitignore`, so git never uploads it. **Never** paste the key into `app.py` or any other code file,
+  the README, or a commit.
+- If a key leaks (for example, it gets pushed to GitHub), delete it in AI Studio and create a new one.
+- The free tier has rate limits. If you hit one, you'll see *"AI call failed"* and the offline answer, and it works again after a minute.
 
 ### A5. Try the "any format" importer
 
@@ -168,7 +220,8 @@ git push -u origin main
 |---|---|
 | `streamlit: command not found` | Activate the venv, or run `python -m streamlit run app.py` |
 | `ModuleNotFoundError: flame` | Run from the project root, and use `python -m pytest` (not bare `pytest`) |
-| Offline mode although a key is set | The file must be exactly `.streamlit/secrets.toml`. Restart the app |
+| Offline mode although a key is set | The file must be exactly `.streamlit/secrets.toml`, next to `app.py`. Windows may have saved it as `secrets.toml.txt`: check with `dir .streamlit` and rename it. Then restart the app |
+| *"AI call failed (ClientError)"* right after adding the key | The key is wrong or has extra spaces. Copy it again from AI Studio, keeping the quotes: `GEMINI_API_KEY = "AIza..."` |
 | *"AI call failed (…)"* | Quota or bad key. The offline answer is still shown. Retry later or check the key |
 | AI fails with a model error / 404 | Google retired the model. Pick a current Flash model at https://ai.google.dev/gemini-api/docs/models and add `GEMINI_MODEL = "name"` to the secrets |
 | Changes in `data/` not showing | Click **🔄 Reload data/resources** (data is cached) |
