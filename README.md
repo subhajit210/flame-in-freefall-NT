@@ -1,6 +1,6 @@
 # Flame in Freefall
 
-![tests](https://github.com/<your-username>/flame-in-freefall/actions/workflows/tests.yml/badge.svg)
+[![tests](https://github.com/subhajit210/flame-in-freefall-NT/actions/workflows/tests.yml/badge.svg)](https://github.com/subhajit210/flame-in-freefall-NT/actions/workflows/tests.yml)
 
 A decision-support dashboard that organises NASA's microgravity combustion experiments for spacecraft and habitat fire safety.
 Developed for the NASA Space Apps Challenge 2026 ("Flame in Freefall").
