@@ -156,9 +156,18 @@ docs/                      user guide and code walkthrough
 - `data/investigations.json` was compiled from public NASA descriptions of each investigation. Test condition ranges and years are
   approximate and are marked `"verified": false` until checked against PSI. Records updated from imported test data are marked as
   verified.
+- Real NASA PSI Experimental Tables are ingested from `data/resources/` at load time. Currently included (CC0-1.0): **PSI-98**
+  (Saffire-I) and **PSI-69** (FLEX), which replace those records' approximate conditions with measured values; **PSI-26** (BASS)
+  and **PSI-23** (ACME s-Flame) are logs without numeric conditions and are indexed as searchable text. Each PSI investigation
+  has a citable DOI on its repository page.
 - Relevance scores per safety pillar (0–3) are editorial assessments based on each investigation's stated objectives.
 - PSI does not yet contain partial-gravity combustion data. The E-FIELD investigation, which uses electric fields to mimic buoyancy,
   is the closest available proxy.
+
+## License
+
+Released under the MIT License; see [LICENSE](LICENSE). NASA datasets and resources retain their own terms of use; this
+license covers the project's source code, documentation and curated seed data only.
 
 ## References
 

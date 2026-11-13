@@ -112,3 +112,58 @@ def test_merge_updates_known_and_adds_new_investigations(tmp_path):
 def test_search_finds_document_passages(tmp_path):
     hits = SearchIndex(RECORDS, make_resources(tmp_path)["documents"]).search_docs("water mist extinguisher")
     assert hits and hits[0][0]["title"] == "notes.txt"
+
+
+# ---------- importer: real NASA PSI schema ----------
+# Mirrors PSI-98 (Saffire-I): 'Material' not 'Sample Number' is the fuel, O2 is a text range, there is no
+# investigation or pressure column, and the experiment name lives in the file name as 'SAFFIRE-1'.
+PSI_CSV = (
+    "Sample Number ,Material,Sample Thickness (cm),Air Flow (cm/s),Percent O2,Flow Direction \n"
+    "S1,SIBAL Fabric,0.37,20,21.5 - 21.7,Concurrent\n"
+    "S2,SIBAL Fabric,0.37,20,~ 21.5,Opposed\n"
+    "F1C1/F1C2,Pre-test flow visualisation data,,,,\n"
+)
+
+
+def test_psi_fuel_column_beats_sample_number():
+    cols = match_columns(["Sample Number ", "Material", "Sample Thickness (cm)", "Air Flow (cm/s)", "Percent O2"])
+    assert cols["fuel"] == "Material"                       # 'material' outranks the weaker 'sample'
+    assert cols["o2_pct"] == "Percent O2" and cols["flow_cm_s"] == "Air Flow (cm/s)"
+
+
+def test_psi_text_ranges_parse_and_filename_maps_to_record(tmp_path):
+    (tmp_path / "PSI-98_Experimental table_SAFFIRE-1.csv").write_text(PSI_CSV)
+    t = load_resources(tmp_path)["tests"]
+    assert len(t) == 2                                      # pre-test visualisation row (no numbers) dropped
+    assert set(t["fuel"]) == {"SIBAL Fabric"}
+    assert abs(t["o2_pct"].min() - 21.5) < 0.01 and abs(t["o2_pct"].max() - 21.6) < 0.01  # '21.5 - 21.7' -> 21.6
+
+    merged = {r["id"]: r for r in merge_tests(RECORDS, t)}
+    assert len(merged) == len(RECORDS)                      # mapped onto Saffire-I by file name, no new record
+    s = merged["Saffire-I"]
+    assert s["conditions"]["o2_pct"] == [21.5, 21.6]
+    assert s["conditions"]["pressure_psi"] == [14.7, 14.7]  # kept: the PSI table has no pressure column
+    assert s["verified"] and s["n_tests"] == 2
+
+
+# PSI-69 (FLEX): non-UTF-8 file, pressure in mmHg, oxygen as an 'O ... mole fraction' column, a 0 = missing.
+FLEX_CSV = (
+    "FLEX Test #,Fuel,Ambient pressure; mmHg,O initial ambient composition; mole fraction,"
+    "He initial ambient composition; mole fraction,Test end\n"
+    "1,Methanol,760,0.21,0,Extinction\n"
+    "2,Heptane,2320,0.34,0.1,Disruption–A\n"          # en-dash -> 0x96 byte in cp1252
+    "3,Methanol,0,0.12,0,Extinction\n"
+)
+
+
+def test_psi_flex_encoding_units_and_mole_fraction(tmp_path):
+    (tmp_path / "PSI-69_Experimental table_FLEX.csv").write_bytes(FLEX_CSV.encode("cp1252"))
+    t = load_resources(tmp_path)["tests"]                   # must not crash on the non-UTF-8 byte
+    assert len(t) == 3 and set(t["fuel"]) == {"Methanol", "Heptane"}
+    assert t["o2_pct"].min() == 12 and t["o2_pct"].max() == 34    # mole fraction -> %
+    assert abs(t["pressure_psi"].max() - 44.86) < 0.1            # mmHg -> psi
+    assert t["pressure_psi"].isna().sum() == 1                   # the 0 mmHg row treated as missing
+
+    flex = {r["id"]: r for r in merge_tests(RECORDS, t)}["FLEX"]
+    assert flex["conditions"]["o2_pct"] == [12.0, 34.0]
+    assert flex["verified"] and flex["n_tests"] == 3

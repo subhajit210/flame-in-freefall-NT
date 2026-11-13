@@ -30,7 +30,7 @@ python -m pytest
 python -m flame.evaluate
 ```
 
-Expected results: `15 passed`. The benchmark reports an MRR of approximately 0.98 for the fused BM25 + LSA method and maps
+Expected results: `18 passed`. The benchmark reports an MRR of approximately 0.98 for the fused BM25 + LSA method and maps
 40 of 40 header variants correctly.
 
 ### 1.3 Running the application
@@ -159,7 +159,16 @@ Column recognition is defined by `ALIASES` and `UNITS` in `flame/importer.py`. M
 
 ### 3.3 Reviewing the import
 
-Open **Data → Imported resources**.
+For a quick check without starting the application, run:
+
+```bash
+python -m flame.importer
+```
+
+This scans `data/resources/` and reports the test rows parsed, the investigations detected (and which are new),
+the document passages indexed, and any files skipped, with a preview of the normalised test table.
+
+Open **Data → Imported resources** in the application for the same information interactively.
 
 | Observation | Cause | Action |
 |---|---|---|
